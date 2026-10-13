@@ -388,6 +388,10 @@
                 </a>
               </div>
               <p class="text-sm text-gray-700 mt-1">${t.details}</p>
+              
+              <!-- KOD GAMBAR BARU -->
+              ${t.imageUrl ? `<a href="${t.imageUrl}" target="_blank" class="inline-block mt-2 text-xs font-bold text-blue-600 underline bg-blue-50 px-2 py-1 rounded border border-blue-200">🖼️ View Attached Image</a>` : ""}
+              
               ${t.resolutionNote ? `<p class="text-xs text-emerald-800 bg-emerald-50 p-2 rounded mt-2 border border-emerald-100">📝 <b>Tech Note:</b> ${t.resolutionNote}</p>` : ""}
             </div>
 
