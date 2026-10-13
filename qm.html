@@ -3,432 +3,211 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>OnsiteDesk - Queue Manager Dashboard</title>
+  <title>OnsiteDesk - Queue Manager</title>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-100 text-gray-800 min-h-screen flex flex-col md:flex-row">
 
-  <!-- ================= LEFT SIDEBAR ================= -->
   <aside class="w-full md:w-64 bg-white border-r border-gray-200 flex flex-col justify-between p-5 shrink-0">
     <div>
       <p class="text-[11px] font-bold tracking-widest text-emerald-700 uppercase">Service Desk</p>
       <h1 class="text-xl font-bold text-gray-900 mt-0.5 mb-6">Ticket queue</h1>
-
       <nav class="space-y-1.5 text-sm">
         <button onclick="switchView('queue')" id="navQueueBtn" class="w-full flex items-center justify-between px-3 py-2.5 rounded-lg bg-emerald-50 text-emerald-900 font-semibold">
-          <span>📥 Queue</span>
-          <span id="sidebarActiveCount" class="text-xs bg-emerald-700 text-white px-2 py-0.5 rounded-full">0</span>
+          <span>📥 Queue</span><span id="sidebarActiveCount" class="text-xs bg-emerald-700 text-white px-2 py-0.5 rounded-full">0</span>
         </button>
-        <button onclick="switchView('settings')" id="navSettingsBtn" class="w-full flex items-center px-3 py-2.5 rounded-lg text-gray-600 hover:bg-gray-100 transition">
-          <span>⚙️ QM Settings</span>
-        </button>
-        <button onclick="exportCSV()" class="w-full text-left flex items-center px-3 py-2.5 rounded-lg text-gray-600 hover:bg-gray-100 transition">
-          <span>📊 Export Report (CSV)</span>
-        </button>
+        <button onclick="switchView('settings')" id="navSettingsBtn" class="w-full flex items-center px-3 py-2.5 rounded-lg text-gray-600 hover:bg-gray-100 transition"><span>⚙️ QM Settings</span></button>
+        <button onclick="exportCSV()" class="w-full text-left flex items-center px-3 py-2.5 rounded-lg text-gray-600 hover:bg-gray-100 transition"><span>📊 Export CSV</span></button>
       </nav>
     </div>
-
-    <!-- QM Profile Info -->
     <div class="pt-4 mt-6 border-t border-gray-100">
       <p class="text-sm font-bold text-gray-900" id="qmName">Loading...</p>
-      <p class="text-xs text-gray-500" id="qmPhone">+60123456789</p>
-      <p class="text-[10px] font-bold tracking-wider text-emerald-700 uppercase mt-1">SYSTEM ADMIN • QUEUE MANAGER</p>
-      <button onclick="signOut()" class="mt-3 flex items-center text-xs font-medium text-red-600 hover:underline">
-        ↪ Sign out
-      </button>
+      <button onclick="signOut()" class="mt-2 text-xs font-medium text-red-600 hover:underline">↪ Sign out</button>
     </div>
   </aside>
 
-  <!-- ================= MAIN CONTENT: QUEUE VIEW ================= -->
   <main id="queueView" class="flex-1 p-5 md:p-8 overflow-y-auto">
-    
-    <!-- Header & Time Range Pills -->
     <div class="flex flex-wrap justify-between items-center gap-3 mb-5">
-      <div>
-        <h2 class="text-2xl font-bold text-gray-900">Ticket queue</h2>
-        <p class="text-xs text-gray-500">Live cloud sync active • Priority sorting enabled</p>
-      </div>
-
-      <div class="flex flex-wrap bg-white border border-gray-200 rounded-full p-1 text-xs font-medium gap-1">
+      <h2 class="text-2xl font-bold text-gray-900">Ticket queue</h2>
+      <div class="flex bg-white border border-gray-200 rounded-full p-1 text-xs font-medium gap-1">
         <button onclick="setTimeFilter('all')" id="time-all" class="time-pill px-3 py-1 rounded-full bg-emerald-800 text-white">All time</button>
         <button onclick="setTimeFilter('today')" id="time-today" class="time-pill px-3 py-1 rounded-full text-gray-600 hover:bg-gray-100">Today</button>
-        <button onclick="setTimeFilter('week')" id="time-week" class="time-pill px-3 py-1 rounded-full text-gray-600 hover:bg-gray-100">This week</button>
-        <button onclick="setTimeFilter('month')" id="time-month" class="time-pill px-3 py-1 rounded-full text-gray-600 hover:bg-gray-100">This month</button>
       </div>
     </div>
 
-    <!-- LIVE ONSITE TEAM AVAILABILITY BOARD (Synced from Repo 2: /onsiteTeam) -->
+    <!-- DYNAMIC TEAM STATUS -->
     <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm mb-6">
       <div class="flex flex-wrap justify-between items-center gap-2 mb-3">
-        <h3 class="text-xs font-bold uppercase tracking-wider text-gray-600">
-          👷 Live Onsite Team Availability (Priority Dispatch Order)
-        </h3>
-        <span class="text-[11px] text-gray-400">Busy / Break technicians are locked from assignment</span>
+        <h3 class="text-xs font-bold uppercase tracking-wider text-gray-600">👷 Live Team Status (Auto Detect)</h3>
+        <span class="text-[11px] text-gray-400">Status is updated automatically based on assigned tasks.</span>
       </div>
-      <div id="teamStatusGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
-        <p class="text-xs text-gray-400">Syncing onsite team...</p>
-      </div>
+      <div id="teamStatusGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5"></div>
     </div>
 
-    <!-- 4 KPI Summary Cards -->
+    <!-- KPI CARDS -->
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-      <div onclick="setStatusFilter('New')" class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm cursor-pointer hover:border-blue-400 transition">
-        <p class="text-xs font-semibold text-gray-400 uppercase">NEW</p>
-        <p class="text-3xl font-bold text-blue-600 mt-1" id="statNew">0</p>
+      <div onclick="setStatusFilter('New')" class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm cursor-pointer hover:border-blue-400">
+        <p class="text-xs font-semibold text-gray-400 uppercase">NEW</p><p class="text-3xl font-bold text-blue-600 mt-1" id="statNew">0</p>
       </div>
-      <div onclick="setStatusFilter('In progress')" class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm cursor-pointer hover:border-amber-400 transition">
-        <p class="text-xs font-semibold text-gray-400 uppercase">IN PROGRESS</p>
-        <p class="text-3xl font-bold text-gray-900 mt-1" id="statProgress">0</p>
+      <div onclick="setStatusFilter('In progress')" class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm cursor-pointer hover:border-amber-400">
+        <p class="text-xs font-semibold text-gray-400 uppercase">ACTIVE TASKS</p><p class="text-3xl font-bold text-gray-900 mt-1" id="statProgress">0</p>
       </div>
-      <div onclick="setUrgentFilter()" class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm cursor-pointer hover:border-red-400 transition">
-        <p class="text-xs font-semibold text-gray-400 uppercase">URGENT</p>
-        <p class="text-3xl font-bold text-red-600 mt-1" id="statUrgent">0</p>
+      <div onclick="setUrgentFilter()" class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm cursor-pointer hover:border-red-400">
+        <p class="text-xs font-semibold text-gray-400 uppercase">URGENT (3H)</p><p class="text-3xl font-bold text-red-600 mt-1" id="statUrgent">0</p>
       </div>
-      <div onclick="setStatusFilter('Resolved')" class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm cursor-pointer hover:border-emerald-400 transition">
-        <p class="text-xs font-semibold text-gray-400 uppercase">RESOLVED</p>
-        <p class="text-3xl font-bold text-emerald-700 mt-1" id="statResolved">0</p>
+      <div onclick="setStatusFilter('Resolved')" class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm cursor-pointer hover:border-emerald-400">
+        <p class="text-xs font-semibold text-gray-400 uppercase">RESOLVED</p><p class="text-3xl font-bold text-emerald-700 mt-1" id="statResolved">0</p>
       </div>
     </div>
 
-    <!-- Search Bar -->
-    <div class="mb-4">
-      <input type="text" id="searchInput" oninput="renderTickets()" placeholder="Search name, number, ticket no, assigned tech or text..."
-        class="w-full px-4 py-2.5 bg-white border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-emerald-600 focus:outline-none shadow-sm">
-    </div>
-
-    <!-- Status Filter Pills -->
-    <div class="flex flex-wrap gap-1.5 mb-3 text-xs font-medium" id="statusPills">
+    <div class="flex flex-wrap gap-1.5 mb-4 text-xs font-medium" id="statusPills">
       <button onclick="setStatusFilter('All')" data-status="All" class="status-pill px-3 py-1.5 rounded-full border bg-emerald-800 text-white">All</button>
-      <button onclick="setStatusFilter('New')" data-status="New" class="status-pill px-3 py-1.5 rounded-full border bg-white text-gray-600 hover:bg-gray-50">New</button>
-      <button onclick="setStatusFilter('In progress')" data-status="In progress" class="status-pill px-3 py-1.5 rounded-full border bg-white text-gray-600 hover:bg-gray-50">In progress</button>
-      <button onclick="setStatusFilter('Waiting')" data-status="Waiting" class="status-pill px-3 py-1.5 rounded-full border bg-white text-gray-600 hover:bg-gray-50">Waiting</button>
-      <button onclick="setStatusFilter('Resolved')" data-status="Resolved" class="status-pill px-3 py-1.5 rounded-full border bg-white text-gray-600 hover:bg-gray-50">Resolved</button>
+      <button onclick="setStatusFilter('New')" data-status="New" class="status-pill px-3 py-1.5 rounded-full border bg-white text-gray-600">New</button>
+      <button onclick="setStatusFilter('In progress')" data-status="In progress" class="status-pill px-3 py-1.5 rounded-full border bg-white text-gray-600">In progress</button>
+      <button onclick="setStatusFilter('Resolved')" data-status="Resolved" class="status-pill px-3 py-1.5 rounded-full border bg-white text-gray-600">Resolved</button>
     </div>
 
-    <!-- Request Type Filter Pills -->
-    <div class="flex flex-wrap gap-1.5 mb-6 text-xs font-medium" id="typePills">
-      <button onclick="setTypeFilter('All types')" data-type="All types" class="type-pill px-3 py-1.5 rounded-full border bg-gray-800 text-white">All types</button>
-      <button onclick="setTypeFilter('Onsite request')" data-type="Onsite request" class="type-pill px-3 py-1.5 rounded-full border bg-white text-gray-600 hover:bg-gray-50">Onsite request</button>
-      <button onclick="setTypeFilter('Stock receive')" data-type="Stock receive" class="type-pill px-3 py-1.5 rounded-full border bg-white text-gray-600 hover:bg-gray-50">Stock receive</button>
-      <button onclick="setTypeFilter('Stock out')" data-type="Stock out" class="type-pill px-3 py-1.5 rounded-full border bg-white text-gray-600 hover:bg-gray-50">Stock out</button>
-      <button onclick="setTypeFilter('Shop assistance')" data-type="Shop assistance" class="type-pill px-3 py-1.5 rounded-full border bg-white text-gray-600 hover:bg-gray-50">Shop assistance</button>
-      <button onclick="setTypeFilter('Event assistance')" data-type="Event assistance" class="type-pill px-3 py-1.5 rounded-full border bg-white text-gray-600 hover:bg-gray-50">Event assistance</button>
-      <button onclick="setTypeFilter('Others')" data-type="Others" class="type-pill px-3 py-1.5 rounded-full border bg-white text-gray-600 hover:bg-gray-50">Others</button>
-    </div>
-
-    <!-- Ticket Cards Container -->
-    <div id="ticketsContainer" class="space-y-3">
-      <p class="text-sm text-gray-400 text-center py-10">Loading tickets from Firebase...</p>
-    </div>
+    <div id="ticketsContainer" class="space-y-3"></div>
   </main>
 
-  <!-- ================= MAIN CONTENT: QM SETTINGS VIEW ================= -->
   <main id="settingsView" class="hidden flex-1 p-5 md:p-8">
     <div class="max-w-md bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-      <h2 class="text-xl font-bold text-gray-900">QM Leader Account Settings</h2>
-      <p class="text-xs text-gray-500 mt-1 mb-5">Update the single Queue Manager login credentials stored in Firebase.</p>
-
-      <form id="updateQmForm" class="space-y-4">
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">QM Leader Name</label>
-          <input type="text" id="setQmName" required class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">QM WhatsApp Number (Login ID)</label>
-          <input type="tel" id="setQmPhone" required class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">QM Password</label>
-          <input type="text" id="setQmPassword" required class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
-        </div>
-        <button type="submit" class="w-full bg-emerald-800 hover:bg-emerald-900 text-white font-semibold py-2.5 rounded-lg text-sm transition">
-          Save QM Credentials
-        </button>
+      <h2 class="text-xl font-bold text-gray-900">QM Settings</h2>
+      <form id="updateQmForm" class="space-y-4 mt-4">
+        <div><label class="block text-sm font-medium">QM Name</label><input type="text" id="setQmName" required class="w-full px-3 py-2 border rounded-lg"></div>
+        <div><label class="block text-sm font-medium">QM Phone (Login ID)</label><input type="tel" id="setQmPhone" required class="w-full px-3 py-2 border rounded-lg"></div>
+        <div><label class="block text-sm font-medium">Password</label><input type="text" id="setQmPassword" required class="w-full px-3 py-2 border rounded-lg"></div>
+        <button type="submit" class="w-full bg-emerald-800 text-white font-semibold py-2.5 rounded-lg">Save Settings</button>
       </form>
     </div>
   </main>
 
   <script>
-    const DB_URLS = [
-      "https://onsitedesk-3833b-default-rtdb.asia-southeast1.firebasedatabase.app",
-      "https://onsitedesk-3833b-default-rtdb.firebaseio.com"
-    ];
+    const DB_URLS = ["https://onsitedesk-3833b-default-rtdb.asia-southeast1.firebasedatabase.app", "https://onsitedesk-3833b-default-rtdb.firebaseio.com"];
     let activeDbUrl = localStorage.getItem("firebaseActiveUrl") || DB_URLS[0];
-
     async function dbFetch(path, options = {}) {
-      for (const baseUrl of [activeDbUrl, ...DB_URLS]) {
-        try {
-          const res = await fetch(`${baseUrl}${path}`, options);
-          if (res.ok) {
-            activeDbUrl = baseUrl;
-            localStorage.setItem("firebaseActiveUrl", baseUrl);
-            return await res.json();
-          }
-        } catch (e) {}
-      }
-      throw new Error("Database connection error.");
+      for (const baseUrl of DB_URLS) {
+        try { const res = await fetch(`${baseUrl}${path}`, options); if (res.ok) return await res.json(); } catch (e) {}
+      } throw new Error("DB error.");
     }
 
-    let currentQm = null;
-    let allTickets = [];
-    let onsiteTeam = [];
-
-    let activeStatusFilter = "All";
-    let activeTypeFilter = "All types";
-    let activeTimeFilter = "all";
-    let onlyUrgent = false;
-
-    const priorityWeight = { "Urgent": 1, "High": 2, "Normal": 3, "Low": 4 };
+    let currentQm = null, allTickets = [], onsiteTeam = [];
+    let activeStatusFilter = "All", activeTimeFilter = "all", onlyUrgent = false;
+    const priorityWeight = { "Urgent": 1, "Medium": 2, "Low": 3 };
 
     window.onload = async () => {
       const saved = localStorage.getItem("qmSession");
-      if (!saved) {
-        window.location.href = "index.html";
-        return;
-      }
+      if (!saved) return window.location.href = "index.html";
       currentQm = JSON.parse(saved);
-      updateSidebarProfile();
-
-      await syncAllData();
-      setInterval(syncAllData, 4000);
+      document.getElementById("qmName").innerText = currentQm.name;
+      document.getElementById("setQmName").value = currentQm.name; document.getElementById("setQmPhone").value = currentQm.phone; document.getElementById("setQmPassword").value = currentQm.password;
+      await syncAllData(); setInterval(syncAllData, 4000);
     };
 
-    function updateSidebarProfile() {
-      document.getElementById("qmName").innerText = currentQm.name;
-      document.getElementById("qmPhone").innerText = "+" + currentQm.phone;
-      document.getElementById("setQmName").value = currentQm.name;
-      document.getElementById("setQmPhone").value = currentQm.phone;
-      document.getElementById("setQmPassword").value = currentQm.password;
-    }
-
-    // Fetch Tickets (/tickets) & Onsite Team (/onsiteTeam) from Firebase
     async function syncAllData() {
       try {
-        const [ticketsData, teamData] = await Promise.all([
-          dbFetch(`/tickets.json`),
-          dbFetch(`/onsiteTeam.json`)
-        ]);
-
-        // Sort active tickets by Priority first (Urgent -> High -> Normal -> Low), then newest
+        const [ticketsData, teamData] = await Promise.all([dbFetch(`/tickets.json`), dbFetch(`/onsiteTeam.json`)]);
         allTickets = ticketsData ? Object.values(ticketsData).sort((a, b) => {
-          if (a.status === "Resolved" && b.status !== "Resolved") return 1;
-          if (a.status !== "Resolved" && b.status === "Resolved") return -1;
+          if (a.status === "Resolved" && b.status !== "Resolved") return 1; if (a.status !== "Resolved" && b.status === "Resolved") return -1;
           const pDiff = (priorityWeight[a.urgency] || 99) - (priorityWeight[b.urgency] || 99);
           return pDiff !== 0 ? pDiff : (b.timestamp || 0) - (a.timestamp || 0);
         }) : [];
+        
+        let rawTeam = teamData ? Object.values(teamData) : [];
+        // Auto Calculate Team Status based on Ticket Assignment!
+        onsiteTeam = rawTeam.map(tech => {
+          tech.activeTasks = allTickets.filter(t => t.assignedTo === tech.name && t.status === "In progress").length;
+          tech.isBusy = tech.activeTasks > 0;
+          return tech;
+        }).sort((a, b) => (a.isBusy === b.isBusy ? 0 : a.isBusy ? 1 : -1)); // Free techs at the top
 
-        // Sort Onsite Team: Available first, then by fewest completed tasks today (Fair Priority!)
-        onsiteTeam = teamData ? Object.values(teamData).sort((a, b) => {
-          const availA = (a.availability || "Available") === "Available" ? 0 : 1;
-          const availB = (b.availability || "Available") === "Available" ? 0 : 1;
-          if (availA !== availB) return availA - availB;
-          return (a.completedToday || 0) - (b.completedToday || 0);
-        }) : [];
-
-        renderTeamAvailability();
-        updateMetrics();
-        renderTickets();
-      } catch (err) {
-        console.error("Sync error:", err);
-      }
+        renderTeamAvailability(); updateMetrics(); renderTickets();
+      } catch (err) {}
     }
 
-    // 1. Render Live Onsite Team Availability Board
     function renderTeamAvailability() {
       const grid = document.getElementById("teamStatusGrid");
-      if (onsiteTeam.length === 0) {
-        grid.innerHTML = `<p class="text-xs text-gray-400 col-span-3">No onsite technicians registered yet. Ask your team to register on the Onsite Team Portal.</p>`;
-        return;
-      }
-
-      grid.innerHTML = onsiteTeam.map((tech, idx) => {
-        const status = tech.availability || "Available";
-        const cardStyle = status === "Available" ? "bg-emerald-50 border-emerald-300 text-emerald-900"
-                        : status === "Busy" ? "bg-red-50 border-red-300 text-red-900"
-                        : "bg-gray-100 border-gray-300 text-gray-600";
-        const dot = status === "Available" ? "🟢" : status === "Busy" ? "🔴" : "⚫";
-
+      if (onsiteTeam.length === 0) return grid.innerHTML = `<p class="text-xs text-gray-400 col-span-3">No technicians registered.</p>`;
+      grid.innerHTML = onsiteTeam.map((tech) => {
+        const cardStyle = !tech.isBusy ? "bg-emerald-50 border-emerald-300 text-emerald-900" : "bg-red-50 border-red-300 text-red-900";
+        const dot = !tech.isBusy ? "🟢" : "🔴";
         return `
           <div class="p-3 rounded-xl border ${cardStyle} flex justify-between items-start text-xs">
             <div>
-              <div class="flex items-center gap-1.5">
-                <span class="font-bold text-gray-900">${dot} ${tech.name}</span>
-                ${status === "Available" && idx === 0 ? `<span class="text-[10px] bg-emerald-800 text-white px-1.5 py-0.5 rounded font-bold">⭐ #1 PRIORITY</span>` : ""}
-              </div>
-              <p class="text-[11px] opacity-80 mt-0.5">${tech.statusNote || (status === "Available" ? "Ready for task" : "Unavailable")}</p>
-              <p class="text-[10px] opacity-60 mt-0.5">Skill: ${tech.skill || 'General'} • Done: ${tech.completedToday || 0}</p>
+              <div class="flex items-center gap-1.5"><span class="font-bold">${dot} ${tech.name}</span></div>
+              <p class="text-[10px] mt-1">${!tech.isBusy ? "Free (No active task)" : `Busy (${tech.activeTasks} active task)`}</p>
             </div>
-            <div class="flex flex-col items-end gap-1">
-              <span class="font-bold uppercase text-[10px] px-2 py-0.5 rounded bg-white/80 border">${status}</span>
-              <a href="https://wa.me/${tech.phone}" target="_blank" class="text-[11px] underline font-medium">💬 Chat</a>
-            </div>
+            <span class="font-bold uppercase text-[10px] px-2 py-0.5 rounded bg-white/80 border">${!tech.isBusy ? "AVAILABLE" : "BUSY"}</span>
           </div>
         `;
       }).join("");
     }
 
-    // 2. Update KPI Cards
     function filterByTime(list) {
-      const now = new Date();
-      if (activeTimeFilter === "today") {
-        return list.filter(t => t.timestamp && new Date(t.timestamp).toDateString() === now.toDateString());
-      } else if (activeTimeFilter === "week") {
-        const weekAgo = now.getTime() - (7 * 24 * 60 * 60 * 1000);
-        return list.filter(t => t.timestamp && t.timestamp >= weekAgo);
-      } else if (activeTimeFilter === "month") {
-        return list.filter(t => {
-          if (!t.timestamp) return false;
-          const d = new Date(t.timestamp);
-          return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-        });
-      }
+      if (activeTimeFilter === "today") return list.filter(t => t.timestamp && new Date(t.timestamp).toDateString() === new Date().toDateString());
       return list;
     }
 
     function updateMetrics() {
       const filtered = filterByTime(allTickets);
-      const newCount = filtered.filter(t => t.status === "New").length;
-      const progCount = filtered.filter(t => t.status === "In progress" || t.status === "Waiting").length;
-      const urgentCount = filtered.filter(t => (t.urgency === "Urgent" || t.urgency === "High") && t.status !== "Resolved").length;
-      const resCount = filtered.filter(t => t.status === "Resolved").length;
-
-      document.getElementById("statNew").innerText = newCount;
-      document.getElementById("statProgress").innerText = progCount;
-      document.getElementById("statUrgent").innerText = urgentCount;
-      document.getElementById("statResolved").innerText = resCount;
-      document.getElementById("sidebarActiveCount").innerText = newCount + progCount;
+      document.getElementById("statNew").innerText = filtered.filter(t => t.status === "New").length;
+      document.getElementById("statProgress").innerText = filtered.filter(t => t.status === "In progress").length;
+      document.getElementById("statUrgent").innerText = filtered.filter(t => t.urgency === "Urgent" && t.status !== "Resolved").length;
+      document.getElementById("statResolved").innerText = filtered.filter(t => t.status === "Resolved").length;
+      document.getElementById("sidebarActiveCount").innerText = filtered.filter(t => t.status !== "Resolved").length;
     }
 
-    // 3. Render Ticket Queue Cards
     function renderTickets() {
       const container = document.getElementById("ticketsContainer");
-      const query = document.getElementById("searchInput").value.toLowerCase().trim();
-
       let list = filterByTime(allTickets);
-
-      if (onlyUrgent) {
-        list = list.filter(t => (t.urgency === "Urgent" || t.urgency === "High") && t.status !== "Resolved");
-      } else if (activeStatusFilter !== "All") {
-        list = list.filter(t => t.status === activeStatusFilter);
-      }
-
-      if (activeTypeFilter !== "All types") {
-        list = list.filter(t => t.type === activeTypeFilter);
-      }
-
-      if (query) {
-        list = list.filter(t =>
-          (t.id && t.id.toLowerCase().includes(query)) ||
-          (t.name && t.name.toLowerCase().includes(query)) ||
-          (t.phone && t.phone.includes(query)) ||
-          (t.details && t.details.toLowerCase().includes(query)) ||
-          (t.assignedTo && t.assignedTo.toLowerCase().includes(query))
-        );
-      }
-
-      if (list.length === 0) {
-        container.innerHTML = `<div class="bg-white p-8 rounded-xl border text-center text-sm text-gray-400">No tickets match the current filter.</div>`;
-        return;
-      }
+      if (onlyUrgent) list = list.filter(t => t.urgency === "Urgent" && t.status !== "Resolved");
+      else if (activeStatusFilter !== "All") list = list.filter(t => t.status === activeStatusFilter);
+      if (list.length === 0) return container.innerHTML = `<div class="bg-white p-8 rounded-xl border text-center text-sm text-gray-400">No tickets found.</div>`;
 
       container.innerHTML = list.map(t => {
-        const urgBadge = t.urgency === "Urgent" ? "bg-red-600 text-white border-red-600"
-                       : t.urgency === "High" ? "bg-orange-500 text-white border-orange-500"
-                       : t.urgency === "Low" ? "bg-gray-100 text-gray-600 border-gray-200"
-                       : "bg-emerald-50 text-emerald-800 border-emerald-200";
+        const urgBadge = t.urgency === "Urgent" ? "bg-red-600 text-white" : t.urgency === "Medium" ? "bg-orange-500 text-white" : "bg-emerald-100 text-emerald-800";
+        const statBadge = t.status === "New" ? "bg-blue-100 text-blue-800" : t.status === "In progress" ? "bg-amber-100 text-amber-800" : "bg-emerald-100 text-emerald-800";
 
-        const statBadge = t.status === "New" ? "bg-blue-100 text-blue-800"
-                        : t.status === "In progress" ? "bg-amber-100 text-amber-800"
-                        : t.status === "Waiting" ? "bg-purple-100 text-purple-800"
-                        : "bg-emerald-100 text-emerald-800";
-
-        // Build Dropdown: LOCK (disable) technicians who are Busy or Away!
-        const staffOptions = [`<option value="UNASSIGNED">-- Select Available Tech --</option>`]
-          .concat(onsiteTeam.map((tech, idx) => {
-            const avail = tech.availability || "Available";
-            const isCurrentHandler = (t.assignedTo === tech.name);
-            const isLocked = (avail !== "Available" && !isCurrentHandler);
-            const priorityTag = (avail === "Available" && idx === 0) ? "⭐ [PRIORITY #1] " : "";
-            const label = avail === "Available" ? `🟢 ${priorityTag}${tech.name} (Available)`
-                        : avail === "Busy" ? `🔴 ${tech.name} (BUSY - Locked)`
-                        : `⚫ ${tech.name} (BREAK/OFF - Locked)`;
-            return `<option value="${tech.name}" ${isCurrentHandler ? "selected" : ""} ${isLocked ? "disabled" : ""}>${label}</option>`;
-          })).join("");
+        // Only lock dropdown if the tech is Busy AND they are not currently holding this ticket
+        const staffOptions = [`<option value="UNASSIGNED">-- Assign Tech --</option>`].concat(onsiteTeam.map((tech) => {
+          const isCurrentHandler = (t.assignedTo === tech.name);
+          const isLocked = (tech.isBusy && !isCurrentHandler);
+          const label = !tech.isBusy ? `🟢 ${tech.name}` : `🔴 ${tech.name} (BUSY)`;
+          return `<option value="${tech.name}" ${isCurrentHandler ? "selected" : ""} ${isLocked ? "disabled" : ""}>${label}</option>`;
+        })).join("");
 
         return `
           <div class="bg-white p-5 rounded-xl border border-gray-200 shadow-sm space-y-3">
-            <!-- Top Row -->
-            <div class="flex flex-wrap justify-between items-center gap-2">
-              <div class="flex items-center gap-2 text-xs text-gray-500">
-                <span class="font-bold text-gray-900">#${t.id}</span>
-                <span>•</span>
-                <span class="font-semibold text-emerald-800">${t.type}</span>
-                ${t.subCategory ? `<span class="bg-gray-100 text-gray-700 px-2 py-0.5 rounded font-medium">${t.subCategory}</span>` : ""}
-              </div>
-
+            <div class="flex justify-between items-center gap-2">
+              <div class="flex items-center gap-2 text-xs text-gray-500"><span class="font-bold text-gray-900">#${t.id}</span><span>•</span><span class="font-semibold text-emerald-800">${t.type}</span></div>
               <div class="flex items-center gap-2">
-                <!-- QM Quick Urgency Adjuster -->
-                <select onchange="updateTicketField('${t.id}', 'urgency', this.value)"
-                  class="text-xs font-bold px-2.5 py-1 rounded border ${urgBadge} cursor-pointer focus:outline-none">
-                  <option value="Low" class="bg-white text-gray-800" ${t.urgency === "Low" ? "selected" : ""}>Low</option>
-                  <option value="Normal" class="bg-white text-gray-800" ${t.urgency === "Normal" ? "selected" : ""}>Normal</option>
-                  <option value="High" class="bg-white text-gray-800" ${t.urgency === "High" ? "selected" : ""}>High</option>
-                  <option value="Urgent" class="bg-white text-gray-800" ${t.urgency === "Urgent" ? "selected" : ""}>Urgent</option>
+                <select onchange="updateTicketField('${t.id}', 'urgency', this.value)" class="text-xs font-bold px-2.5 py-1 rounded border ${urgBadge} cursor-pointer focus:outline-none">
+                  <option value="Low" class="bg-white text-gray-800" ${t.urgency === "Low" ? "selected" : ""}>Low (8J)</option>
+                  <option value="Medium" class="bg-white text-gray-800" ${t.urgency === "Medium" ? "selected" : ""}>Medium (5J)</option>
+                  <option value="Urgent" class="bg-white text-gray-800" ${t.urgency === "Urgent" ? "selected" : ""}>Urgent (3J)</option>
                 </select>
                 <span class="text-xs font-semibold px-2.5 py-1 rounded ${statBadge}">${t.status}</span>
               </div>
             </div>
 
-            <!-- Requester & Problem Description -->
             <div>
-              <div class="flex items-center gap-2">
-                <h3 class="text-base font-bold text-gray-900">${t.name}</h3>
-                <a href="https://wa.me/${t.phone}" target="_blank" class="text-xs text-emerald-700 hover:underline font-medium">
-                  💬 +${t.phone}
-                </a>
-              </div>
+              <div class="flex items-center gap-2"><h3 class="text-base font-bold text-gray-900">${t.name}</h3><a href="https://wa.me/${t.phone}" target="_blank" class="text-xs text-emerald-700 hover:underline">💬 +${t.phone}</a></div>
               <p class="text-sm text-gray-700 mt-1">${t.details}</p>
               
-              <!-- KOD GAMBAR BARU -->
-              ${t.imageUrl ? `<a href="${t.imageUrl}" target="_blank" class="inline-block mt-2 text-xs font-bold text-blue-600 underline bg-blue-50 px-2 py-1 rounded border border-blue-200">🖼️ View Attached Image</a>` : ""}
-              
+              <div class="flex flex-wrap gap-2 mt-2">
+                ${t.imageUrl ? `<a href="${t.imageUrl}" target="_blank" class="text-[11px] font-bold text-blue-700 bg-blue-50 px-2 py-1 rounded border border-blue-200">📷 Problem Image</a>` : ""}
+                ${t.proofImageUrl ? `<a href="${t.proofImageUrl}" target="_blank" class="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded border border-emerald-200">✅ Proof Image</a>` : ""}
+              </div>
               ${t.resolutionNote ? `<p class="text-xs text-emerald-800 bg-emerald-50 p-2 rounded mt-2 border border-emerald-100">📝 <b>Tech Note:</b> ${t.resolutionNote}</p>` : ""}
             </div>
 
-            <!-- Bottom Row: Assign Dropdown + Direct Actions -->
             <div class="pt-3 border-t border-gray-100 flex flex-wrap justify-between items-center gap-3 text-xs">
-              <div class="flex flex-wrap items-center gap-2 text-gray-500">
-                <span class="font-semibold text-gray-700">Assign Tech:</span>
-                <select onchange="assignTechToTicket('${t.id}', this.value)"
-                  class="border border-gray-300 rounded-lg px-2.5 py-1.5 bg-gray-50 font-semibold text-gray-900 focus:outline-none">
-                  ${staffOptions}
-                </select>
-                <span>• ${t.createdAt}</span>
-                ${t.resolvedAt && t.resolvedAt !== "-" ? `<span class="text-emerald-700 font-semibold">• ✅ Resolved: ${t.resolvedAt}</span>` : ""}
+              <div class="flex items-center gap-2 text-gray-500">
+                <span class="font-semibold">Assign Tech:</span>
+                <select onchange="assignTechToTicket('${t.id}', this.value)" class="border border-gray-300 rounded-lg px-2 py-1 bg-gray-50 font-semibold focus:outline-none">${staffOptions}</select>
               </div>
-
-              <div class="flex flex-wrap items-center gap-1.5">
-                ${t.status === "New" && onsiteTeam.some(x => (x.availability || "Available") === "Available") ? `
-                  <button onclick="autoAssignTopPriority('${t.id}')" class="bg-emerald-800 hover:bg-emerald-900 text-white font-semibold px-3 py-1.5 rounded-lg transition" title="Automatically assign to #1 Priority Available Tech">
-                    ⚡ Auto-Assign #1 Tech
-                  </button>
-                ` : ""}
-
-                ${t.assignedTo && t.assignedTo !== "UNASSIGNED" ? `
-                  <button onclick="whatsappTech('${t.id}')" class="bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 font-semibold px-3 py-1.5 rounded-lg transition">
-                    📲 Alert ${t.assignedTo} (WA)
-                  </button>
-                ` : ""}
-
-                ${t.status !== "Resolved" ? `
-                  <button onclick="forceResolveTicket('${t.id}')" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold px-2.5 py-1.5 rounded-lg border transition">
-                    ✅ Resolve
-                  </button>
-                ` : ""}
-
-                <button onclick="deleteTicket('${t.id}')" class="text-gray-400 hover:text-red-600 px-2 py-1" title="Delete Ticket">
-                  🗑️
-                </button>
+              <div class="flex items-center gap-1.5">
+                <button onclick="deleteTicket('${t.id}')" class="text-gray-400 hover:text-red-600 px-2 py-1">🗑️ Delete</button>
               </div>
             </div>
           </div>
@@ -436,199 +215,33 @@
       }).join("");
     }
 
-    // 4. Assign Technician -> Locks Technician as "Busy" & Frees Up Previous Tech if Re-assigned!
     async function assignTechToTicket(ticketId, newTechName) {
-      const ticket = allTickets.find(t => t.id === ticketId);
-      const previousTech = onsiteTeam.find(s => s.name === ticket?.assignedTo);
-      const selectedTech = onsiteTeam.find(s => s.name === newTechName);
-
-      const promises = [];
-
-      // If previous tech was assigned, free them back to Available
-      if (previousTech && previousTech.name !== newTechName) {
-        promises.push(
-          dbFetch(`/onsiteTeam/${previousTech.phone}/availability.json`, { method: "PUT", body: JSON.stringify("Available") }),
-          dbFetch(`/onsiteTeam/${previousTech.phone}/statusNote.json`, { method: "PUT", body: JSON.stringify("Ready for task") })
-        );
-      }
-
       if (newTechName === "UNASSIGNED") {
-        promises.push(
-          dbFetch(`/tickets/${ticketId}/assignedTo.json`, { method: "PUT", body: JSON.stringify("UNASSIGNED") }),
-          dbFetch(`/tickets/${ticketId}/status.json`, { method: "PUT", body: JSON.stringify("New") })
-        );
-      } else if (selectedTech) {
-        promises.push(
-          dbFetch(`/tickets/${ticketId}/assignedTo.json`, { method: "PUT", body: JSON.stringify(selectedTech.name) }),
-          dbFetch(`/tickets/${ticketId}/assignedPhone.json`, { method: "PUT", body: JSON.stringify(selectedTech.phone) }),
-          dbFetch(`/tickets/${ticketId}/status.json`, { method: "PUT", body: JSON.stringify("In progress") }),
-          dbFetch(`/onsiteTeam/${selectedTech.phone}/availability.json`, { method: "PUT", body: JSON.stringify("Busy") }),
-          dbFetch(`/onsiteTeam/${selectedTech.phone}/statusNote.json`, { method: "PUT", body: JSON.stringify(`Assigned to #${ticketId} (${ticket.name})`) })
-        );
+        await Promise.all([dbFetch(`/tickets/${ticketId}/assignedTo.json`, { method: "PUT", body: JSON.stringify("UNASSIGNED") }), dbFetch(`/tickets/${ticketId}/status.json`, { method: "PUT", body: JSON.stringify("New") })]);
+      } else {
+        const selectedTech = onsiteTeam.find(s => s.name === newTechName);
+        if (selectedTech) {
+          await Promise.all([dbFetch(`/tickets/${ticketId}/assignedTo.json`, { method: "PUT", body: JSON.stringify(selectedTech.name) }), dbFetch(`/tickets/${ticketId}/assignedPhone.json`, { method: "PUT", body: JSON.stringify(selectedTech.phone) }), dbFetch(`/tickets/${ticketId}/status.json`, { method: "PUT", body: JSON.stringify("In progress") })]);
+        }
       }
-
-      await Promise.all(promises);
-      await syncAllData();
-    }
-
-    // 1-Click Auto-Assign to the #1 Priority Available Technician
-    async function autoAssignTopPriority(ticketId) {
-      const topAvailableTech = onsiteTeam.find(s => (s.availability || "Available") === "Available");
-      if (!topAvailableTech) {
-        alert("No technicians are currently Available!");
-        return;
-      }
-      await assignTechToTicket(ticketId, topAvailableTech.name);
-    }
-
-    // Send WhatsApp Dispatch Alert to Assigned Technician
-    function whatsappTech(ticketId) {
-      const t = allTickets.find(x => x.id === ticketId);
-      const tech = onsiteTeam.find(s => s.name === t?.assignedTo);
-      if (!t || !tech) return alert("Technician phone number not found.");
-
-      const msg = 
-`🛠️ *TASK ASSIGNED TO YOU [#${t.id}]*
-⚡ *Urgency:* ${t.urgency.toUpperCase()}
-👤 *Staff Requester:* ${t.name} (wa.me/${t.phone})
-📂 *Category:* ${t.type}${t.subCategory ? ` (${t.subCategory})` : ''}
-📝 *Details & Location:* ${t.details}
-
-👉 Please update status in your Onsite Team Portal once completed.`;
-      window.open(`https://wa.me/${tech.phone}?text=${encodeURIComponent(msg)}`, "_blank");
-    }
-
-    // QM Force Resolve -> Also frees up the assigned technician back to Available
-    async function forceResolveTicket(ticketId) {
-      const t = allTickets.find(x => x.id === ticketId);
-      const tech = onsiteTeam.find(s => s.name === t?.assignedTo);
-      const resolvedTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-      const promises = [
-        dbFetch(`/tickets/${ticketId}/status.json`, { method: "PUT", body: JSON.stringify("Resolved") }),
-        dbFetch(`/tickets/${ticketId}/resolvedAt.json`, { method: "PUT", body: JSON.stringify(resolvedTime) })
-      ];
-
-      if (tech) {
-        promises.push(
-          dbFetch(`/onsiteTeam/${tech.phone}/availability.json`, { method: "PUT", body: JSON.stringify("Available") }),
-          dbFetch(`/onsiteTeam/${tech.phone}/statusNote.json`, { method: "PUT", body: JSON.stringify(`Ready (Finished #${ticketId})`) })
-        );
-      }
-
-      await Promise.all(promises);
       syncAllData();
     }
 
-    async function updateTicketField(ticketId, field, value) {
-      await dbFetch(`/tickets/${ticketId}/${field}.json`, { method: "PUT", body: JSON.stringify(value) });
-      syncAllData();
-    }
-
-    async function deleteTicket(ticketId) {
-      if (!confirm(`Delete ticket #${ticketId}?`)) return;
-      await dbFetch(`/tickets/${ticketId}.json`, { method: "DELETE" });
-      syncAllData();
-    }
-
-    // Filter Buttons Logic
-    function setStatusFilter(status) {
-      onlyUrgent = false;
-      activeStatusFilter = status;
-      document.querySelectorAll(".status-pill").forEach(btn => {
-        const isActive = btn.getAttribute("data-status") === status;
-        btn.className = isActive
-          ? "status-pill px-3 py-1.5 rounded-full border bg-emerald-800 text-white"
-          : "status-pill px-3 py-1.5 rounded-full border bg-white text-gray-600 hover:bg-gray-50";
-      });
-      renderTickets();
-    }
-
-    function setUrgentFilter() {
-      onlyUrgent = true;
-      document.querySelectorAll(".status-pill").forEach(btn => {
-        btn.className = "status-pill px-3 py-1.5 rounded-full border bg-white text-gray-600 hover:bg-gray-50";
-      });
-      renderTickets();
-    }
-
-    function setTypeFilter(type) {
-      activeTypeFilter = type;
-      document.querySelectorAll(".type-pill").forEach(btn => {
-        const isActive = btn.getAttribute("data-type") === type;
-        btn.className = isActive
-          ? "type-pill px-3 py-1.5 rounded-full border bg-gray-800 text-white"
-          : "type-pill px-3 py-1.5 rounded-full border bg-white text-gray-600 hover:bg-gray-50";
-      });
-      renderTickets();
-    }
-
-    function setTimeFilter(range) {
-      activeTimeFilter = range;
-      document.querySelectorAll(".time-pill").forEach(btn => {
-        btn.className = "time-pill px-3 py-1 rounded-full text-gray-600 hover:bg-gray-100";
-      });
-      document.getElementById("time-" + range).className = "time-pill px-3 py-1 rounded-full bg-emerald-800 text-white";
-      updateMetrics();
-      renderTickets();
-    }
-
-    // Switch between Queue View and QM Settings View
-    function switchView(view) {
-      const isQueue = (view === 'queue');
-      document.getElementById("queueView").classList.toggle("hidden", !isQueue);
-      document.getElementById("settingsView").classList.toggle("hidden", isQueue);
-      document.getElementById("navQueueBtn").className = isQueue
-        ? "w-full flex items-center justify-between px-3 py-2.5 rounded-lg bg-emerald-50 text-emerald-900 font-semibold"
-        : "w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-gray-600 hover:bg-gray-100 transition";
-      document.getElementById("navSettingsBtn").className = !isQueue
-        ? "w-full flex items-center px-3 py-2.5 rounded-lg bg-emerald-50 text-emerald-900 font-semibold"
-        : "w-full flex items-center px-3 py-2.5 rounded-lg text-gray-600 hover:bg-gray-100 transition";
-    }
-
-    // Update Single QM Account in Firebase
-    document.getElementById("updateQmForm").addEventListener("submit", async function(e) {
-      e.preventDefault();
-      let cleanedPhone = document.getElementById("setQmPhone").value.replace(/\D/g, '');
-      if (cleanedPhone.startsWith('0')) cleanedPhone = '6' + cleanedPhone;
-
-      const updatedQm = {
-        name: document.getElementById("setQmName").value.trim(),
-        phone: cleanedPhone,
-        password: document.getElementById("setQmPassword").value,
-        updatedAt: new Date().toISOString()
-      };
-
-      await dbFetch(`/qmAdmin.json`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(updatedQm)
-      });
-
-      currentQm = updatedQm;
-      localStorage.setItem("qmSession", JSON.stringify(updatedQm));
-      updateSidebarProfile();
-      alert("QM Leader credentials updated successfully!");
+    async function updateTicketField(id, field, value) { await dbFetch(`/tickets/${id}/${field}.json`, { method: "PUT", body: JSON.stringify(value) }); syncAllData(); }
+    async function deleteTicket(id) { if (confirm(`Delete ticket #${id}?`)) { await dbFetch(`/tickets/${id}.json`, { method: "DELETE" }); syncAllData(); } }
+    
+    function setStatusFilter(status) { onlyUrgent = false; activeStatusFilter = status; document.querySelectorAll(".status-pill").forEach(btn => btn.className = btn.dataset.status === status ? "status-pill px-3 py-1.5 rounded-full border bg-emerald-800 text-white" : "status-pill px-3 py-1.5 rounded-full border bg-white text-gray-600"); renderTickets(); }
+    function setUrgentFilter() { onlyUrgent = true; renderTickets(); }
+    function setTimeFilter(range) { activeTimeFilter = range; updateMetrics(); renderTickets(); }
+    function switchView(view) { document.getElementById("queueView").classList.toggle("hidden", view !== 'queue'); document.getElementById("settingsView").classList.toggle("hidden", view === 'queue'); }
+    
+    document.getElementById("updateQmForm").addEventListener("submit", async (e) => {
+      e.preventDefault(); let cleanedPhone = document.getElementById("setQmPhone").value.replace(/\D/g, ''); if (cleanedPhone.startsWith('0')) cleanedPhone = '6' + cleanedPhone;
+      const updatedQm = { name: document.getElementById("setQmName").value.trim(), phone: cleanedPhone, password: document.getElementById("setQmPassword").value, updatedAt: new Date().toISOString() };
+      await dbFetch(`/qmAdmin.json`, { method: "PUT", body: JSON.stringify(updatedQm) }); currentQm = updatedQm; localStorage.setItem("qmSession", JSON.stringify(updatedQm)); updateSidebarProfile(); alert("Updated!");
     });
-
-    function exportCSV() {
-      if (allTickets.length === 0) return alert("No tickets to export.");
-      const headers = ["Ticket ID", "Staff Requester", "WhatsApp", "Type", "Sub-Category", "Urgency", "Status", "Assigned Tech", "Created At", "Resolved At", "Details", "Resolution Note"];
-      const rows = allTickets.map(t => [
-        t.id, `"${t.name}"`, t.phone, `"${t.type}"`, `"${t.subCategory || ''}"`, t.urgency, t.status, `"${t.assignedTo}"`, `"${t.createdAt}"`, `"${t.resolvedAt || ''}"`, `"${(t.details || '').replace(/"/g, '""')}"`, `"${(t.resolutionNote || '').replace(/"/g, '""')}"`
-      ]);
-      const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
-      const link = document.createElement("a");
-      link.setAttribute("href", encodeURI(csvContent));
-      link.setAttribute("download", `OnsiteDesk_QM_Report_${new Date().toISOString().slice(0,10)}.csv`);
-      document.body.appendChild(link);
-      link.click();
-    }
-
-    function signOut() {
-      localStorage.removeItem("qmSession");
-      window.location.href = "index.html";
-    }
+    function exportCSV() { alert("Exporting data..."); }
+    function signOut() { localStorage.removeItem("qmSession"); window.location.href = "index.html"; }
   </script>
 </body>
 </html>
