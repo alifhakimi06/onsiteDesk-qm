@@ -55,7 +55,7 @@
         <p class="text-xs font-semibold text-gray-400 uppercase">RESOLVED</p><p class="text-3xl font-bold text-purple-600 mt-1" id="statResolved">0</p>
       </div>
       <div onclick="setStatusFilter('Completed')" class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm cursor-pointer hover:border-emerald-400 transition">
-        <p class="text-xs font-semibold text-gray-400 uppercase">COMPLETED</p><p class="text-3xl font-bold text-emerald-700 mt-1" id="statCompleted">0</p>
+        <p class="text-xs font-semibold text-gray-400 uppercase">COMPLETED (QM)</p><p class="text-3xl font-bold text-emerald-700 mt-1" id="statCompleted">0</p>
       </div>
     </div>
 
@@ -244,7 +244,6 @@
     function setStatusFilter(status) { onlyUrgent = false; activeStatusFilter = status; document.querySelectorAll(".status-pill").forEach(btn => btn.className = btn.dataset.status === status ? "status-pill px-3 py-1.5 rounded-full border bg-emerald-800 text-white" : "status-pill px-3 py-1.5 rounded-full border bg-white text-gray-600"); renderTickets(); }
     function setUrgentFilter() { onlyUrgent = true; renderTickets(); }
     
-    // LOGIK BUTANG TIME FILTER DIPERBAIKI (TUKAR WARNA HIJAU BILA DITEKAN)
     function setTimeFilter(range) { 
       activeTimeFilter = range; 
       document.querySelectorAll(".time-pill").forEach(btn => btn.className = btn.dataset.time === range ? "time-pill px-3 py-1 rounded-full bg-emerald-800 text-white" : "time-pill px-3 py-1 rounded-full text-gray-600 hover:bg-gray-100 transition"); 
