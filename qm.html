@@ -29,9 +29,9 @@
   <main id="queueView" class="flex-1 p-5 md:p-8 overflow-y-auto">
     <div class="flex flex-wrap justify-between items-center gap-3 mb-5">
       <h2 class="text-2xl font-bold text-gray-900">Ticket queue</h2>
-      <div class="flex bg-white border border-gray-200 rounded-full p-1 text-xs font-medium gap-1">
-        <button onclick="setTimeFilter('all')" id="time-all" class="time-pill px-3 py-1 rounded-full bg-emerald-800 text-white">All time</button>
-        <button onclick="setTimeFilter('today')" id="time-today" class="time-pill px-3 py-1 rounded-full text-gray-600 hover:bg-gray-100">Today</button>
+      <div class="flex bg-white border border-gray-200 rounded-full p-1 text-xs font-medium gap-1" id="timeFilterContainer">
+        <button onclick="setTimeFilter('all')" data-time="all" class="time-pill px-3 py-1 rounded-full bg-emerald-800 text-white">All time</button>
+        <button onclick="setTimeFilter('today')" data-time="today" class="time-pill px-3 py-1 rounded-full text-gray-600 hover:bg-gray-100 transition">Today</button>
       </div>
     </div>
 
@@ -43,7 +43,7 @@
       <div id="teamStatusGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5"></div>
     </div>
 
-    <!-- 4 KPI CARDS (DIPERBAIKI) -->
+    <!-- KPI CARDS -->
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
       <div onclick="setStatusFilter('New')" class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm cursor-pointer hover:border-blue-400 transition">
         <p class="text-xs font-semibold text-gray-400 uppercase">NEW</p><p class="text-3xl font-bold text-blue-600 mt-1" id="statNew">0</p>
@@ -52,10 +52,10 @@
         <p class="text-xs font-semibold text-gray-400 uppercase">ACTIVE (TECH)</p><p class="text-3xl font-bold text-amber-600 mt-1" id="statProgress">0</p>
       </div>
       <div onclick="setStatusFilter('Resolved')" class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm cursor-pointer hover:border-purple-400 transition">
-        <p class="text-xs font-semibold text-gray-400 uppercase">PENDING VERIFY</p><p class="text-3xl font-bold text-purple-600 mt-1" id="statResolved">0</p>
+        <p class="text-xs font-semibold text-gray-400 uppercase">RESOLVED</p><p class="text-3xl font-bold text-purple-600 mt-1" id="statResolved">0</p>
       </div>
       <div onclick="setStatusFilter('Completed')" class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm cursor-pointer hover:border-emerald-400 transition">
-        <p class="text-xs font-semibold text-gray-400 uppercase">COMPLETED (QM)</p><p class="text-3xl font-bold text-emerald-700 mt-1" id="statCompleted">0</p>
+        <p class="text-xs font-semibold text-gray-400 uppercase">COMPLETED</p><p class="text-3xl font-bold text-emerald-700 mt-1" id="statCompleted">0</p>
       </div>
     </div>
 
@@ -63,7 +63,7 @@
       <button onclick="setStatusFilter('All')" data-status="All" class="status-pill px-3 py-1.5 rounded-full border bg-emerald-800 text-white">All</button>
       <button onclick="setStatusFilter('New')" data-status="New" class="status-pill px-3 py-1.5 rounded-full border bg-white text-gray-600">New</button>
       <button onclick="setStatusFilter('In progress')" data-status="In progress" class="status-pill px-3 py-1.5 rounded-full border bg-white text-gray-600">Active</button>
-      <button onclick="setStatusFilter('Resolved')" data-status="Resolved" class="status-pill px-3 py-1.5 rounded-full border bg-white text-gray-600">Pending Verify</button>
+      <button onclick="setStatusFilter('Resolved')" data-status="Resolved" class="status-pill px-3 py-1.5 rounded-full border bg-white text-gray-600">Resolved</button>
       <button onclick="setStatusFilter('Completed')" data-status="Completed" class="status-pill px-3 py-1.5 rounded-full border bg-white text-gray-600">Completed</button>
     </div>
 
@@ -150,7 +150,6 @@
       document.getElementById("statProgress").innerText = filtered.filter(t => t.status === "In progress").length;
       document.getElementById("statResolved").innerText = filtered.filter(t => t.status === "Resolved").length;
       document.getElementById("statCompleted").innerText = filtered.filter(t => t.status === "Completed").length;
-      // Active queue = New + In progress
       document.getElementById("sidebarActiveCount").innerText = filtered.filter(t => t.status === "New" || t.status === "In progress").length;
     }
 
@@ -167,8 +166,6 @@
                         : t.status === "In progress" ? "bg-amber-100 text-amber-800" 
                         : t.status === "Resolved" ? "bg-purple-100 text-purple-800" 
                         : "bg-emerald-100 text-emerald-800";
-        
-        const statusText = t.status === "Resolved" ? "Pending Verify" : t.status;
 
         const staffOptions = [`<option value="UNASSIGNED">-- Assign Tech --</option>`].concat(onsiteTeam.map((tech) => {
           const isCurrentHandler = (t.assignedTo === tech.name);
@@ -183,11 +180,11 @@
               <div class="flex items-center gap-2 text-xs text-gray-500"><span class="font-bold text-gray-900">#${t.id}</span><span>•</span><span class="font-semibold text-emerald-800">${t.type}</span></div>
               <div class="flex items-center gap-2">
                 <select onchange="updateTicketField('${t.id}', 'urgency', this.value)" class="text-xs font-bold px-2.5 py-1 rounded border ${urgBadge} cursor-pointer focus:outline-none">
-                  <option value="Low" class="bg-white text-gray-800" ${t.urgency === "Low" ? "selected" : ""}>Low (8J)</option>
-                  <option value="Medium" class="bg-white text-gray-800" ${t.urgency === "Medium" ? "selected" : ""}>Medium (5J)</option>
-                  <option value="Urgent" class="bg-white text-gray-800" ${t.urgency === "Urgent" ? "selected" : ""}>Urgent (3J)</option>
+                  <option value="Low" class="bg-white text-gray-800" ${t.urgency === "Low" ? "selected" : ""}>Low (8H)</option>
+                  <option value="Medium" class="bg-white text-gray-800" ${t.urgency === "Medium" ? "selected" : ""}>Medium (5H)</option>
+                  <option value="Urgent" class="bg-white text-gray-800" ${t.urgency === "Urgent" ? "selected" : ""}>Urgent (3H)</option>
                 </select>
-                <span class="text-xs font-semibold px-2.5 py-1 rounded ${statBadge}">${statusText}</span>
+                <span class="text-xs font-semibold px-2.5 py-1 rounded ${statBadge}">${t.status}</span>
               </div>
             </div>
 
@@ -200,6 +197,11 @@
                 ${t.proofImageUrl ? `<a href="${t.proofImageUrl}" target="_blank" class="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded border border-emerald-200">✅ Proof Image</a>` : ""}
               </div>
               ${t.resolutionNote ? `<p class="text-xs text-emerald-800 bg-emerald-50 p-2 rounded mt-2 border border-emerald-100">📝 <b>Tech Note:</b> ${t.resolutionNote}</p>` : ""}
+              
+              <div class="text-[10px] text-gray-400 mt-2 flex flex-col gap-0.5">
+                <span>Created: ${t.createdAt}</span>
+                ${t.resolvedAt && t.resolvedAt !== "-" ? `<span>Resolved: ${t.resolvedAt}</span>` : ""}
+              </div>
             </div>
 
             <div class="pt-3 border-t border-gray-100 flex flex-wrap justify-between items-center gap-3 text-xs">
@@ -208,13 +210,8 @@
                 <select onchange="assignTechToTicket('${t.id}', this.value)" class="border border-gray-300 rounded-lg px-2 py-1 bg-gray-50 font-semibold focus:outline-none">${staffOptions}</select>
               </div>
               <div class="flex items-center gap-1.5">
-                <!-- BUTANG VERIFY QM (HANYA KELUAR BILA STATUS RESOLVED) -->
-                ${t.status === "Resolved" ? `
-                  <button onclick="markAsCompleted('${t.id}')" class="bg-emerald-700 hover:bg-emerald-800 text-white font-semibold px-3 py-1.5 rounded-lg shadow-sm transition">
-                    ✅ Verify & Complete
-                  </button>
-                ` : ""}
-                <button onclick="deleteTicket('${t.id}')" class="text-gray-400 hover:text-red-600 px-2 py-1">🗑️</button>
+                ${t.status === "Resolved" ? `<button onclick="markAsCompleted('${t.id}')" class="bg-emerald-700 hover:bg-emerald-800 text-white font-semibold px-3 py-1.5 rounded-lg shadow-sm transition">✅ Verify & Complete</button>` : ""}
+                <button onclick="deleteTicket('${t.id}')" class="text-gray-400 hover:text-red-600 px-2 py-1">🗑️ Delete</button>
               </div>
             </div>
           </div>
@@ -234,28 +231,34 @@
       syncAllData();
     }
 
-    // FUNGSI BARU UNTUK QM TUTUP KES TIKET
     async function markAsCompleted(id) {
-      if (confirm(`Sahkan tiket #${id} telah selesai sepenuhnya dan tutup kes?`)) {
+      if (confirm(`Confirm that ticket #${id} has been fully verified and should be closed?`)) {
         await dbFetch(`/tickets/${id}/status.json`, { method: "PUT", body: JSON.stringify("Completed") });
         syncAllData();
       }
     }
 
     async function updateTicketField(id, field, value) { await dbFetch(`/tickets/${id}/${field}.json`, { method: "PUT", body: JSON.stringify(value) }); syncAllData(); }
-    async function deleteTicket(id) { if (confirm(`Delete ticket #${id}?`)) { await dbFetch(`/tickets/${id}.json`, { method: "DELETE" }); syncAllData(); } }
+    async function deleteTicket(id) { if (confirm(`Are you sure you want to delete ticket #${id}?`)) { await dbFetch(`/tickets/${id}.json`, { method: "DELETE" }); syncAllData(); } }
     
     function setStatusFilter(status) { onlyUrgent = false; activeStatusFilter = status; document.querySelectorAll(".status-pill").forEach(btn => btn.className = btn.dataset.status === status ? "status-pill px-3 py-1.5 rounded-full border bg-emerald-800 text-white" : "status-pill px-3 py-1.5 rounded-full border bg-white text-gray-600"); renderTickets(); }
     function setUrgentFilter() { onlyUrgent = true; renderTickets(); }
-    function setTimeFilter(range) { activeTimeFilter = range; updateMetrics(); renderTickets(); }
+    
+    // LOGIK BUTANG TIME FILTER DIPERBAIKI (TUKAR WARNA HIJAU BILA DITEKAN)
+    function setTimeFilter(range) { 
+      activeTimeFilter = range; 
+      document.querySelectorAll(".time-pill").forEach(btn => btn.className = btn.dataset.time === range ? "time-pill px-3 py-1 rounded-full bg-emerald-800 text-white" : "time-pill px-3 py-1 rounded-full text-gray-600 hover:bg-gray-100 transition"); 
+      updateMetrics(); renderTickets(); 
+    }
+    
     function switchView(view) { document.getElementById("queueView").classList.toggle("hidden", view !== 'queue'); document.getElementById("settingsView").classList.toggle("hidden", view === 'queue'); }
     
     document.getElementById("updateQmForm").addEventListener("submit", async (e) => {
       e.preventDefault(); let cleanedPhone = document.getElementById("setQmPhone").value.replace(/\D/g, ''); if (cleanedPhone.startsWith('0')) cleanedPhone = '6' + cleanedPhone;
       const updatedQm = { name: document.getElementById("setQmName").value.trim(), phone: cleanedPhone, password: document.getElementById("setQmPassword").value, updatedAt: new Date().toISOString() };
-      await dbFetch(`/qmAdmin.json`, { method: "PUT", body: JSON.stringify(updatedQm) }); currentQm = updatedQm; localStorage.setItem("qmSession", JSON.stringify(updatedQm)); updateSidebarProfile(); alert("Updated!");
+      await dbFetch(`/qmAdmin.json`, { method: "PUT", body: JSON.stringify(updatedQm) }); currentQm = updatedQm; localStorage.setItem("qmSession", JSON.stringify(updatedQm)); updateSidebarProfile(); alert("Settings updated successfully!");
     });
-    function exportCSV() { alert("Exporting data..."); }
+    function exportCSV() { alert("Export feature will download your CSV."); }
     function signOut() { localStorage.removeItem("qmSession"); window.location.href = "index.html"; }
   </script>
 </body>
