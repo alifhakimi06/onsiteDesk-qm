@@ -114,7 +114,8 @@
         
         let rawTeam = teamData ? Object.values(teamData) : [];
         onsiteTeam = rawTeam.map(tech => {
-          tech.activeTasks = allTickets.filter(t => t.assignedTo === tech.name && t.status === "In progress").length;
+          // Check if tech name exists in the comma-separated string!
+          tech.activeTasks = allTickets.filter(t => t.assignedTo && t.assignedTo.split(',').map(s=>s.trim()).includes(tech.name) && t.status === "In progress").length;
           tech.isBusy = tech.activeTasks > 0; return tech;
         }).sort((a, b) => (a.isBusy === b.isBusy ? 0 : a.isBusy ? 1 : -1));
 
@@ -167,12 +168,22 @@
                         : t.status === "Resolved" ? "bg-purple-100 text-purple-800" 
                         : "bg-emerald-100 text-emerald-800";
 
-        const staffOptions = [`<option value="UNASSIGNED">-- Assign Tech --</option>`].concat(onsiteTeam.map((tech) => {
-          const isCurrentHandler = (t.assignedTo === tech.name);
-          const isLocked = (tech.isBusy && !isCurrentHandler);
+        // Logic Checkbox / Multi-assign
+        const assignedArray = (t.assignedTo && t.assignedTo !== "UNASSIGNED") ? t.assignedTo.split(',').map(s=>s.trim()) : [];
+        
+        // Chip badges untuk Tech yang dah di-assign
+        const assignedChipsHtml = assignedArray.map(name => `
+          <span class="bg-emerald-100 text-emerald-800 border border-emerald-200 px-2 py-1 rounded text-xs font-bold flex items-center gap-1">
+            ${name} 
+            <button onclick="removeTechFromTicket('${t.id}', '${name}')" class="text-emerald-900 hover:text-red-600 font-bold ml-1" title="Remove">×</button>
+          </span>
+        `).join('');
+
+        // Dropdown untuk tambah Tech baru yang belum ada dalam tiket ni
+        const availableToAddOptions = onsiteTeam.filter(tech => !assignedArray.includes(tech.name)).map(tech => {
           const label = !tech.isBusy ? `🟢 ${tech.name}` : `🔴 ${tech.name} (BUSY)`;
-          return `<option value="${tech.name}" ${isCurrentHandler ? "selected" : ""} ${isLocked ? "disabled" : ""}>${label}</option>`;
-        })).join("");
+          return `<option value="${tech.name}">${label}</option>`;
+        }).join("");
 
         return `
           <div class="bg-white p-5 rounded-xl border border-gray-200 shadow-sm space-y-3">
@@ -204,12 +215,21 @@
               </div>
             </div>
 
-            <div class="pt-3 border-t border-gray-100 flex flex-wrap justify-between items-center gap-3 text-xs">
-              <div class="flex items-center gap-2 text-gray-500">
-                <span class="font-semibold">Assign Tech:</span>
-                <select onchange="assignTechToTicket('${t.id}', this.value)" class="border border-gray-300 rounded-lg px-2 py-1 bg-gray-50 font-semibold focus:outline-none">${staffOptions}</select>
+            <div class="pt-3 border-t border-gray-100 flex flex-wrap justify-between items-start gap-3 text-xs">
+              
+              <!-- MULTIPLE ASSIGNMENT UI -->
+              <div class="flex flex-col gap-1.5 w-full sm:w-auto">
+                <span class="font-semibold text-gray-500">Assigned Techs:</span>
+                <div class="flex flex-wrap items-center gap-1.5">
+                  ${assignedChipsHtml || '<span class="text-xs italic text-gray-400">Unassigned</span>'}
+                  <select onchange="addTechToTicket('${t.id}', this.value); this.value='';" class="border border-gray-300 rounded px-2 py-1.5 bg-gray-50 font-semibold focus:outline-none">
+                    <option value="">+ Add Tech</option>
+                    ${availableToAddOptions}
+                  </select>
+                </div>
               </div>
-              <div class="flex items-center gap-1.5">
+
+              <div class="flex items-center gap-1.5 mt-2 sm:mt-0">
                 ${t.status === "Resolved" ? `<button onclick="markAsCompleted('${t.id}')" class="bg-emerald-700 hover:bg-emerald-800 text-white font-semibold px-3 py-1.5 rounded-lg shadow-sm transition">✅ Verify & Complete</button>` : ""}
                 <button onclick="deleteTicket('${t.id}')" class="text-gray-400 hover:text-red-600 px-2 py-1">🗑️ Delete</button>
               </div>
@@ -219,22 +239,59 @@
       }).join("");
     }
 
-    async function assignTechToTicket(ticketId, newTechName) {
-      if (newTechName === "UNASSIGNED") {
-        await Promise.all([dbFetch(`/tickets/${ticketId}/assignedTo.json`, { method: "PUT", body: JSON.stringify("UNASSIGNED") }), dbFetch(`/tickets/${ticketId}/status.json`, { method: "PUT", body: JSON.stringify("New") })]);
-      } else {
-        const selectedTech = onsiteTeam.find(s => s.name === newTechName);
-        if (selectedTech) {
-          await Promise.all([dbFetch(`/tickets/${ticketId}/assignedTo.json`, { method: "PUT", body: JSON.stringify(selectedTech.name) }), dbFetch(`/tickets/${ticketId}/assignedPhone.json`, { method: "PUT", body: JSON.stringify(selectedTech.phone) }), dbFetch(`/tickets/${ticketId}/status.json`, { method: "PUT", body: JSON.stringify("In progress") })]);
-        }
+    // FUNGSI TAMBAH TECH
+    async function addTechToTicket(ticketId, techName) {
+      if (!techName) return;
+      const t = allTickets.find(x => x.id === ticketId);
+      const tech = onsiteTeam.find(x => x.name === techName);
+      if (!t || !tech) return;
+
+      let assignedList = (t.assignedTo && t.assignedTo !== "UNASSIGNED") ? t.assignedTo.split(',').map(s=>s.trim()) : [];
+      let phoneList = (t.assignedPhone && t.assignedPhone !== "") ? t.assignedPhone.toString().split(',').map(s=>s.trim()) : [];
+
+      if (!assignedList.includes(tech.name)) {
+        assignedList.push(tech.name);
+        phoneList.push(tech.phone);
       }
-      syncAllData();
+
+      const updates = [
+        dbFetch(`/tickets/${ticketId}/assignedTo.json`, { method: "PUT", body: JSON.stringify(assignedList.join(', ')) }),
+        dbFetch(`/tickets/${ticketId}/assignedPhone.json`, { method: "PUT", body: JSON.stringify(phoneList.join(', ')) })
+      ];
+      
+      if (t.status === "New") updates.push(dbFetch(`/tickets/${ticketId}/status.json`, { method: "PUT", body: JSON.stringify("In progress") }));
+      await Promise.all(updates); syncAllData();
+    }
+
+    // FUNGSI BUANG TECH
+    async function removeTechFromTicket(ticketId, techName) {
+      const t = allTickets.find(x => x.id === ticketId);
+      if (!t) return;
+
+      let assignedList = (t.assignedTo && t.assignedTo !== "UNASSIGNED") ? t.assignedTo.split(',').map(s=>s.trim()) : [];
+      let phoneList = (t.assignedPhone && t.assignedPhone !== "") ? t.assignedPhone.toString().split(',').map(s=>s.trim()) : [];
+
+      const index = assignedList.indexOf(techName);
+      if (index > -1) {
+        assignedList.splice(index, 1);
+        phoneList.splice(index, 1);
+      }
+
+      const newAssignedTo = assignedList.length > 0 ? assignedList.join(', ') : "UNASSIGNED";
+      const newPhone = phoneList.length > 0 ? phoneList.join(', ') : "";
+
+      const updates = [
+        dbFetch(`/tickets/${ticketId}/assignedTo.json`, { method: "PUT", body: JSON.stringify(newAssignedTo) }),
+        dbFetch(`/tickets/${ticketId}/assignedPhone.json`, { method: "PUT", body: JSON.stringify(newPhone) })
+      ];
+
+      if (newAssignedTo === "UNASSIGNED") updates.push(dbFetch(`/tickets/${ticketId}/status.json`, { method: "PUT", body: JSON.stringify("New") }));
+      await Promise.all(updates); syncAllData();
     }
 
     async function markAsCompleted(id) {
       if (confirm(`Confirm that ticket #${id} has been fully verified and should be closed?`)) {
-        await dbFetch(`/tickets/${id}/status.json`, { method: "PUT", body: JSON.stringify("Completed") });
-        syncAllData();
+        await dbFetch(`/tickets/${id}/status.json`, { method: "PUT", body: JSON.stringify("Completed") }); syncAllData();
       }
     }
 
@@ -258,40 +315,23 @@
       await dbFetch(`/qmAdmin.json`, { method: "PUT", body: JSON.stringify(updatedQm) }); currentQm = updatedQm; localStorage.setItem("qmSession", JSON.stringify(updatedQm)); updateSidebarProfile(); alert("Settings updated successfully!");
     });
 
-    // FUNGSI EXPORT CSV YANG SEBENAR (BUKAN ALERT LAGI)
     function exportCSV() {
       if (allTickets.length === 0) return alert("No tickets available to export.");
-
-      const headers = ["Ticket ID", "Requester", "Phone", "Type", "Sub-Category", "SLA", "Status", "Assigned Tech", "Created At", "Resolved At", "Details", "Resolution Note"];
-
+      const headers = ["Ticket ID", "Requester", "Phone", "Type", "Sub-Category", "SLA", "Status", "Assigned Techs", "Created At", "Resolved At", "Details", "Resolution Note"];
       const rows = allTickets.map(t => [
-        t.id,
-        `"${(t.name || '').replace(/"/g, '""')}"`,
-        t.phone,
-        `"${(t.type || '').replace(/"/g, '""')}"`,
-        `"${(t.subCategory || '').replace(/"/g, '""')}"`,
-        t.urgency,
-        t.status,
-        `"${(t.assignedTo || '').replace(/"/g, '""')}"`,
-        `"${t.createdAt || ''}"`,
-        `"${t.resolvedAt && t.resolvedAt !== '-' ? t.resolvedAt : ''}"`,
-        `"${(t.details || '').replace(/"/g, '""').replace(/\n/g, ' ')}"`,
-        `"${(t.resolutionNote || '').replace(/"/g, '""').replace(/\n/g, ' ')}"`
+        t.id, `"${(t.name || '').replace(/"/g, '""')}"`, t.phone, `"${(t.type || '').replace(/"/g, '""')}"`, `"${(t.subCategory || '').replace(/"/g, '""')}"`, t.urgency, t.status,
+        `"${(t.assignedTo || '').replace(/"/g, '""')}"`, // Nama Tech (boleh jadi 2-3 orang)
+        `"${t.createdAt || ''}"`, `"${t.resolvedAt && t.resolvedAt !== '-' ? t.resolvedAt : ''}"`,
+        `"${(t.details || '').replace(/"/g, '""').replace(/\n/g, ' ')}"`, `"${(t.resolutionNote || '').replace(/"/g, '""').replace(/\n/g, ' ')}"`
       ]);
 
       const csvContent = [headers.join(","), ...rows.map(row => row.join(","))].join("\n");
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      
       const link = document.createElement("a");
-      const url = URL.createObjectURL(blob);
-      link.setAttribute("href", url);
+      link.setAttribute("href", URL.createObjectURL(blob));
       link.setAttribute("download", `OnsiteDesk_Report_${new Date().toISOString().slice(0,10)}.csv`);
-      link.style.visibility = 'hidden';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      link.style.visibility = 'hidden'; document.body.appendChild(link); link.click(); document.body.removeChild(link);
     }
-
     function signOut() { localStorage.removeItem("qmSession"); window.location.href = "index.html"; }
   </script>
 </body>
