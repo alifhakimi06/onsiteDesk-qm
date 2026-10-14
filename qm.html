@@ -39,32 +39,32 @@
     <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm mb-6">
       <div class="flex flex-wrap justify-between items-center gap-2 mb-3">
         <h3 class="text-xs font-bold uppercase tracking-wider text-gray-600">👷 Live Team Status (Auto Detect)</h3>
-        <span class="text-[11px] text-gray-400">Status is updated automatically based on assigned tasks.</span>
       </div>
       <div id="teamStatusGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5"></div>
     </div>
 
-    <!-- KPI CARDS -->
+    <!-- 4 KPI CARDS (DIPERBAIKI) -->
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-      <div onclick="setStatusFilter('New')" class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm cursor-pointer hover:border-blue-400">
+      <div onclick="setStatusFilter('New')" class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm cursor-pointer hover:border-blue-400 transition">
         <p class="text-xs font-semibold text-gray-400 uppercase">NEW</p><p class="text-3xl font-bold text-blue-600 mt-1" id="statNew">0</p>
       </div>
-      <div onclick="setStatusFilter('In progress')" class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm cursor-pointer hover:border-amber-400">
-        <p class="text-xs font-semibold text-gray-400 uppercase">ACTIVE TASKS</p><p class="text-3xl font-bold text-gray-900 mt-1" id="statProgress">0</p>
+      <div onclick="setStatusFilter('In progress')" class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm cursor-pointer hover:border-amber-400 transition">
+        <p class="text-xs font-semibold text-gray-400 uppercase">ACTIVE (TECH)</p><p class="text-3xl font-bold text-amber-600 mt-1" id="statProgress">0</p>
       </div>
-      <div onclick="setUrgentFilter()" class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm cursor-pointer hover:border-red-400">
-        <p class="text-xs font-semibold text-gray-400 uppercase">URGENT (3H)</p><p class="text-3xl font-bold text-red-600 mt-1" id="statUrgent">0</p>
+      <div onclick="setStatusFilter('Resolved')" class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm cursor-pointer hover:border-purple-400 transition">
+        <p class="text-xs font-semibold text-gray-400 uppercase">PENDING VERIFY</p><p class="text-3xl font-bold text-purple-600 mt-1" id="statResolved">0</p>
       </div>
-      <div onclick="setStatusFilter('Resolved')" class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm cursor-pointer hover:border-emerald-400">
-        <p class="text-xs font-semibold text-gray-400 uppercase">RESOLVED</p><p class="text-3xl font-bold text-emerald-700 mt-1" id="statResolved">0</p>
+      <div onclick="setStatusFilter('Completed')" class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm cursor-pointer hover:border-emerald-400 transition">
+        <p class="text-xs font-semibold text-gray-400 uppercase">COMPLETED (QM)</p><p class="text-3xl font-bold text-emerald-700 mt-1" id="statCompleted">0</p>
       </div>
     </div>
 
     <div class="flex flex-wrap gap-1.5 mb-4 text-xs font-medium" id="statusPills">
       <button onclick="setStatusFilter('All')" data-status="All" class="status-pill px-3 py-1.5 rounded-full border bg-emerald-800 text-white">All</button>
       <button onclick="setStatusFilter('New')" data-status="New" class="status-pill px-3 py-1.5 rounded-full border bg-white text-gray-600">New</button>
-      <button onclick="setStatusFilter('In progress')" data-status="In progress" class="status-pill px-3 py-1.5 rounded-full border bg-white text-gray-600">In progress</button>
-      <button onclick="setStatusFilter('Resolved')" data-status="Resolved" class="status-pill px-3 py-1.5 rounded-full border bg-white text-gray-600">Resolved</button>
+      <button onclick="setStatusFilter('In progress')" data-status="In progress" class="status-pill px-3 py-1.5 rounded-full border bg-white text-gray-600">Active</button>
+      <button onclick="setStatusFilter('Resolved')" data-status="Resolved" class="status-pill px-3 py-1.5 rounded-full border bg-white text-gray-600">Pending Verify</button>
+      <button onclick="setStatusFilter('Completed')" data-status="Completed" class="status-pill px-3 py-1.5 rounded-full border bg-white text-gray-600">Completed</button>
     </div>
 
     <div id="ticketsContainer" class="space-y-3"></div>
@@ -86,9 +86,7 @@
     const DB_URLS = ["https://onsitedesk-3833b-default-rtdb.asia-southeast1.firebasedatabase.app", "https://onsitedesk-3833b-default-rtdb.firebaseio.com"];
     let activeDbUrl = localStorage.getItem("firebaseActiveUrl") || DB_URLS[0];
     async function dbFetch(path, options = {}) {
-      for (const baseUrl of DB_URLS) {
-        try { const res = await fetch(`${baseUrl}${path}`, options); if (res.ok) return await res.json(); } catch (e) {}
-      } throw new Error("DB error.");
+      for (const baseUrl of DB_URLS) { try { const res = await fetch(`${baseUrl}${path}`, options); if (res.ok) return await res.json(); } catch (e) {} } throw new Error("DB error.");
     }
 
     let currentQm = null, allTickets = [], onsiteTeam = [];
@@ -108,18 +106,17 @@
       try {
         const [ticketsData, teamData] = await Promise.all([dbFetch(`/tickets.json`), dbFetch(`/onsiteTeam.json`)]);
         allTickets = ticketsData ? Object.values(ticketsData).sort((a, b) => {
-          if (a.status === "Resolved" && b.status !== "Resolved") return 1; if (a.status !== "Resolved" && b.status === "Resolved") return -1;
+          if (a.status === "Completed" && b.status !== "Completed") return 1; 
+          if (a.status !== "Completed" && b.status === "Completed") return -1;
           const pDiff = (priorityWeight[a.urgency] || 99) - (priorityWeight[b.urgency] || 99);
           return pDiff !== 0 ? pDiff : (b.timestamp || 0) - (a.timestamp || 0);
         }) : [];
         
         let rawTeam = teamData ? Object.values(teamData) : [];
-        // Auto Calculate Team Status based on Ticket Assignment!
         onsiteTeam = rawTeam.map(tech => {
           tech.activeTasks = allTickets.filter(t => t.assignedTo === tech.name && t.status === "In progress").length;
-          tech.isBusy = tech.activeTasks > 0;
-          return tech;
-        }).sort((a, b) => (a.isBusy === b.isBusy ? 0 : a.isBusy ? 1 : -1)); // Free techs at the top
+          tech.isBusy = tech.activeTasks > 0; return tech;
+        }).sort((a, b) => (a.isBusy === b.isBusy ? 0 : a.isBusy ? 1 : -1));
 
         renderTeamAvailability(); updateMetrics(); renderTickets();
       } catch (err) {}
@@ -130,11 +127,10 @@
       if (onsiteTeam.length === 0) return grid.innerHTML = `<p class="text-xs text-gray-400 col-span-3">No technicians registered.</p>`;
       grid.innerHTML = onsiteTeam.map((tech) => {
         const cardStyle = !tech.isBusy ? "bg-emerald-50 border-emerald-300 text-emerald-900" : "bg-red-50 border-red-300 text-red-900";
-        const dot = !tech.isBusy ? "🟢" : "🔴";
         return `
           <div class="p-3 rounded-xl border ${cardStyle} flex justify-between items-start text-xs">
             <div>
-              <div class="flex items-center gap-1.5"><span class="font-bold">${dot} ${tech.name}</span></div>
+              <div class="flex items-center gap-1.5"><span class="font-bold">${!tech.isBusy ? "🟢" : "🔴"} ${tech.name}</span></div>
               <p class="text-[10px] mt-1">${!tech.isBusy ? "Free (No active task)" : `Busy (${tech.activeTasks} active task)`}</p>
             </div>
             <span class="font-bold uppercase text-[10px] px-2 py-0.5 rounded bg-white/80 border">${!tech.isBusy ? "AVAILABLE" : "BUSY"}</span>
@@ -152,23 +148,28 @@
       const filtered = filterByTime(allTickets);
       document.getElementById("statNew").innerText = filtered.filter(t => t.status === "New").length;
       document.getElementById("statProgress").innerText = filtered.filter(t => t.status === "In progress").length;
-      document.getElementById("statUrgent").innerText = filtered.filter(t => t.urgency === "Urgent" && t.status !== "Resolved").length;
       document.getElementById("statResolved").innerText = filtered.filter(t => t.status === "Resolved").length;
-      document.getElementById("sidebarActiveCount").innerText = filtered.filter(t => t.status !== "Resolved").length;
+      document.getElementById("statCompleted").innerText = filtered.filter(t => t.status === "Completed").length;
+      // Active queue = New + In progress
+      document.getElementById("sidebarActiveCount").innerText = filtered.filter(t => t.status === "New" || t.status === "In progress").length;
     }
 
     function renderTickets() {
       const container = document.getElementById("ticketsContainer");
       let list = filterByTime(allTickets);
-      if (onlyUrgent) list = list.filter(t => t.urgency === "Urgent" && t.status !== "Resolved");
+      if (onlyUrgent) list = list.filter(t => t.urgency === "Urgent" && t.status !== "Completed");
       else if (activeStatusFilter !== "All") list = list.filter(t => t.status === activeStatusFilter);
       if (list.length === 0) return container.innerHTML = `<div class="bg-white p-8 rounded-xl border text-center text-sm text-gray-400">No tickets found.</div>`;
 
       container.innerHTML = list.map(t => {
         const urgBadge = t.urgency === "Urgent" ? "bg-red-600 text-white" : t.urgency === "Medium" ? "bg-orange-500 text-white" : "bg-emerald-100 text-emerald-800";
-        const statBadge = t.status === "New" ? "bg-blue-100 text-blue-800" : t.status === "In progress" ? "bg-amber-100 text-amber-800" : "bg-emerald-100 text-emerald-800";
+        const statBadge = t.status === "New" ? "bg-blue-100 text-blue-800" 
+                        : t.status === "In progress" ? "bg-amber-100 text-amber-800" 
+                        : t.status === "Resolved" ? "bg-purple-100 text-purple-800" 
+                        : "bg-emerald-100 text-emerald-800";
+        
+        const statusText = t.status === "Resolved" ? "Pending Verify" : t.status;
 
-        // Only lock dropdown if the tech is Busy AND they are not currently holding this ticket
         const staffOptions = [`<option value="UNASSIGNED">-- Assign Tech --</option>`].concat(onsiteTeam.map((tech) => {
           const isCurrentHandler = (t.assignedTo === tech.name);
           const isLocked = (tech.isBusy && !isCurrentHandler);
@@ -186,7 +187,7 @@
                   <option value="Medium" class="bg-white text-gray-800" ${t.urgency === "Medium" ? "selected" : ""}>Medium (5J)</option>
                   <option value="Urgent" class="bg-white text-gray-800" ${t.urgency === "Urgent" ? "selected" : ""}>Urgent (3J)</option>
                 </select>
-                <span class="text-xs font-semibold px-2.5 py-1 rounded ${statBadge}">${t.status}</span>
+                <span class="text-xs font-semibold px-2.5 py-1 rounded ${statBadge}">${statusText}</span>
               </div>
             </div>
 
@@ -207,7 +208,13 @@
                 <select onchange="assignTechToTicket('${t.id}', this.value)" class="border border-gray-300 rounded-lg px-2 py-1 bg-gray-50 font-semibold focus:outline-none">${staffOptions}</select>
               </div>
               <div class="flex items-center gap-1.5">
-                <button onclick="deleteTicket('${t.id}')" class="text-gray-400 hover:text-red-600 px-2 py-1">🗑️ Delete</button>
+                <!-- BUTANG VERIFY QM (HANYA KELUAR BILA STATUS RESOLVED) -->
+                ${t.status === "Resolved" ? `
+                  <button onclick="markAsCompleted('${t.id}')" class="bg-emerald-700 hover:bg-emerald-800 text-white font-semibold px-3 py-1.5 rounded-lg shadow-sm transition">
+                    ✅ Verify & Complete
+                  </button>
+                ` : ""}
+                <button onclick="deleteTicket('${t.id}')" class="text-gray-400 hover:text-red-600 px-2 py-1">🗑️</button>
               </div>
             </div>
           </div>
@@ -225,6 +232,14 @@
         }
       }
       syncAllData();
+    }
+
+    // FUNGSI BARU UNTUK QM TUTUP KES TIKET
+    async function markAsCompleted(id) {
+      if (confirm(`Sahkan tiket #${id} telah selesai sepenuhnya dan tutup kes?`)) {
+        await dbFetch(`/tickets/${id}/status.json`, { method: "PUT", body: JSON.stringify("Completed") });
+        syncAllData();
+      }
     }
 
     async function updateTicketField(id, field, value) { await dbFetch(`/tickets/${id}/${field}.json`, { method: "PUT", body: JSON.stringify(value) }); syncAllData(); }
