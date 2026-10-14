@@ -257,7 +257,41 @@
       const updatedQm = { name: document.getElementById("setQmName").value.trim(), phone: cleanedPhone, password: document.getElementById("setQmPassword").value, updatedAt: new Date().toISOString() };
       await dbFetch(`/qmAdmin.json`, { method: "PUT", body: JSON.stringify(updatedQm) }); currentQm = updatedQm; localStorage.setItem("qmSession", JSON.stringify(updatedQm)); updateSidebarProfile(); alert("Settings updated successfully!");
     });
-    function exportCSV() { alert("Export feature will download your CSV."); }
+
+    // FUNGSI EXPORT CSV YANG SEBENAR (BUKAN ALERT LAGI)
+    function exportCSV() {
+      if (allTickets.length === 0) return alert("No tickets available to export.");
+
+      const headers = ["Ticket ID", "Requester", "Phone", "Type", "Sub-Category", "SLA", "Status", "Assigned Tech", "Created At", "Resolved At", "Details", "Resolution Note"];
+
+      const rows = allTickets.map(t => [
+        t.id,
+        `"${(t.name || '').replace(/"/g, '""')}"`,
+        t.phone,
+        `"${(t.type || '').replace(/"/g, '""')}"`,
+        `"${(t.subCategory || '').replace(/"/g, '""')}"`,
+        t.urgency,
+        t.status,
+        `"${(t.assignedTo || '').replace(/"/g, '""')}"`,
+        `"${t.createdAt || ''}"`,
+        `"${t.resolvedAt && t.resolvedAt !== '-' ? t.resolvedAt : ''}"`,
+        `"${(t.details || '').replace(/"/g, '""').replace(/\n/g, ' ')}"`,
+        `"${(t.resolutionNote || '').replace(/"/g, '""').replace(/\n/g, ' ')}"`
+      ]);
+
+      const csvContent = [headers.join(","), ...rows.map(row => row.join(","))].join("\n");
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      
+      const link = document.createElement("a");
+      const url = URL.createObjectURL(blob);
+      link.setAttribute("href", url);
+      link.setAttribute("download", `OnsiteDesk_Report_${new Date().toISOString().slice(0,10)}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+
     function signOut() { localStorage.removeItem("qmSession"); window.location.href = "index.html"; }
   </script>
 </body>
